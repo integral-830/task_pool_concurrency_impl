@@ -1,0 +1,21 @@
+[package]
+name = "task_pool-fuzz"
+version = "0.0.0"
+publish = false
+edition = "2024"
+
+[package.metadata]
+cargo-fuzz = true
+
+[dependencies]
+libfuzzer-sys = "0.4"
+
+[dependencies.task_pool]
+path = ".."
+
+[[bin]]
+name = "slotted_page"
+path = "fuzz_targets/slotted_page.rs"
+test = false
+doc = false
+bench = false

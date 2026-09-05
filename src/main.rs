@@ -1,13 +1,12 @@
-use std::sync::Arc;
-use std::{future::Future, marker::Send, ops::FnOnce};
-use tokio::sync::Semaphore;
+use task_pool::foundations::endianness::{serialize_record, Record};
+use task_pool::foundations::task_pool::{fetch_url, run_with_limit};
 
 #[tokio::main]
 async fn main() {
-    let mut urls = Vec::new();
+    /* let mut urls = Vec::new();
 
     for i in 0..100 {
-        urls.push(format!("https://{i}.com").to_owned())
+        urls.push(format!("https://{i}.com").to_owned());
     }
 
     let tasks: Vec<_> = urls
@@ -18,35 +17,31 @@ async fn main() {
     let results = run_with_limit(tasks, 30).await;
 
     for res in results {
-        println!("{}", res);
-    }
-}
+        println!("{res}");
+    } */
+    let record = Record {
+        id: 0x1234_5678,
+        flags: 0xABCD,
+        kind: 7,
+    };
 
-async fn fetch_url(url: String) -> String {
-    tokio::time::sleep(std::time::Duration::from_millis(200)).await;
-    format!("fetched: {}", url)
-}
+    let bytes = serialize_record(&record);
 
-async fn run_with_limit<F, Fut, T>(tasks: Vec<F>, limit: usize) -> Vec<T>
-where
-    F: FnOnce() -> Fut + Send + 'static,
-    Fut: Future<Output = T> + Send + 'static,
-    T: Send + 'static,
-{
-    let semaphore = Arc::new(Semaphore::new(limit));
-    let mut handles = Vec::new();
+    println!("{:02X?}", bytes);
 
-    for task in tasks {
-        let permit = Arc::clone(&semaphore);
-        let handle = tokio::spawn(async move {
-            let _permit = permit.acquire().await.unwrap();
-            task().await
-        });
-        handles.push(handle);
-    }
-    let mut results = Vec::new();
-    for handle in handles {
-        results.push(handle.await.unwrap());
-    }
-    results
+    let decoded = task_pool::foundations::endianness::deserialize_record(&bytes).unwrap();
+
+    println!("{decoded:?}");
+    println!("original id:  {:08X}", record.id);
+    println!("decoded id:   {:08X}", decoded.id);
+
+    println!("original flags: {:04X}", record.flags);
+    println!("decoded flags:  {:04X}", decoded.flags);
+
+    println!("original kind: {}", record.kind);
+    println!("decoded kind:  {}", decoded.kind);
+
+    println!("equal: {}", record == decoded);
+
+    assert_eq!(record, decoded);
 }
