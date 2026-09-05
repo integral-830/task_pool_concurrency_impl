@@ -1,2 +1,6 @@
 /target
-/fuzz
+/fuzz/target
+/fuzz/artifacts
+/fuzz/corpus
+/data
+
