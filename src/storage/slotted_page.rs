@@ -1,6 +1,7 @@
 use std::io;
 
-pub const PAGE_SIZE: usize = 4096;
+use super::PAGE_SIZE;
+
 pub type SlotId = u16;
 const HEADER_SIZE: usize = 4;
 const SLOT_SIZE: usize = 4;

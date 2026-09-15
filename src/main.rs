@@ -1,5 +1,4 @@
 use task_pool::foundations::endianness::{serialize_record, Record};
-use task_pool::foundations::task_pool::{fetch_url, run_with_limit};
 
 #[tokio::main]
 async fn main() {

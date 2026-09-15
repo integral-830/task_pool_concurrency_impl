@@ -1,5 +1,3 @@
-use std::io::Seek;
-
 pub trait ColumnTable {
     fn new() -> Self
     where
