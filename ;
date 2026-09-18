@@ -1,0 +1,120 @@
+use std::cmp::Ordering;
+use std::{cmp::max, result};
+
+use crate::storage::buffer_pool::frame::PageId;
+
+pub type Bucket = u8;
+pub const BUCKET_COUNT: usize = 8;
+
+pub struct Node {
+    max_bucket: Option<Bucket>,
+    page_id: Option<PageId>,
+}
+
+pub struct FreeSpaceMap {
+    nodes: Vec<Node>,
+    capacity: usize,
+}
+
+#[derive(Debug)]
+pub enum FreeSpaceMapError {
+    InvalidArgument,
+    InvalidFreeSpace,
+    InvalidPageId,
+}
+
+impl FreeSpaceMap {
+    pub fn new(capacity: usize) -> Result<Self, FreeSpaceMapError> {
+        if capacity <= 0 {
+            return Err(FreeSpaceMapError::InvalidArgument);
+        }
+        let total_nodes = 2 * capacity - 1;
+        Ok(Self {
+            nodes: (0..total_nodes)
+                .map(|_| Node {
+                    max_bucket: None,
+                    page_id: None,
+                })
+                .collect(),
+            capacity,
+        })
+    }
+
+    pub fn register_page(
+        &mut self,
+        page_id: PageId,
+        free_space: usize,
+    ) -> Result<Bucket, FreeSpaceMapError> {
+        if page_id >= 8 {
+            return Err(FreeSpaceMapError::InvalidPageId);
+        }
+        let req_bucket = self.get_bucket_id(free_space)?;
+        let leaf_index = self.capacity - 1 + page_id as usize;
+        self.nodes[leaf_index].max_bucket = Some(req_bucket);
+        self.nodes[leaf_index].page_id = Some(page_id);
+        let parent = (leaf_index - 1) / 2;
+        self.recompute_ancestors(parent);
+        Ok(req_bucket)
+    }
+
+    pub fn recompute_ancestors(&mut self, leaf_node: usize) {
+        if leaf_node == 0 {
+            let left = self.nodes[2 * leaf_node + 1].max_bucket;
+            let right = self.nodes[2 * leaf_node + 2].max_bucket;
+            if left < right {
+                self.nodes[leaf_node].max_bucket = left;
+            }
+            self.nodes[leaf_node].max_bucket = right;
+        }
+    }
+
+    pub fn get_len(&self) -> usize {
+        self.nodes.len()
+    }
+
+    pub fn get_capacity(&self) -> usize {
+        self.capacity
+    }
+
+    pub fn get_bucket_id(&self, free_space: usize) -> Result<Bucket, FreeSpaceMapError> {
+        match free_space {
+            0..512 => Ok(0),
+            512..1024 => Ok(1),
+            1024..1536 => Ok(2),
+            1536..2048 => Ok(3),
+            2048..2560 => Ok(4),
+            2560..3072 => Ok(5),
+            3072..3584 => Ok(6),
+            3584..4096 => Ok(7),
+            _ => Err(FreeSpaceMapError::InvalidFreeSpace),
+        }
+    }
+}
+
+#[cfg(test)]
+pub mod fsm_tests {
+    use crate::storage::fsm::tree::FreeSpaceMap;
+
+    #[test]
+    fn test_init() {
+        let fsm = FreeSpaceMap::new(8).expect("Unexpected behaviour...");
+        assert!(fsm.get_len() == 15);
+        assert!(fsm.get_capacity() == 8);
+    }
+
+    #[test]
+    fn test_zero_invariant() {
+        let result = FreeSpaceMap::new(0);
+        assert!(result.is_err());
+    }
+    #[test]
+    fn test_bucketization() {
+        let fsm = FreeSpaceMap::new(8).expect("Unexpected behaviour...");
+        assert_eq!(fsm.get_bucket_id(1026).unwrap(), 2);
+        assert_eq!(fsm.get_bucket_id(2096).unwrap(), 4);
+        assert_eq!(fsm.get_bucket_id(3011).unwrap(), 5);
+        assert_eq!(fsm.get_bucket_id(511).unwrap(), 0);
+        assert_eq!(fsm.get_bucket_id(512).unwrap(), 1);
+        assert!(fsm.get_bucket_id(4096).is_err());
+    }
+}

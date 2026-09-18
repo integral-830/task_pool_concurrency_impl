@@ -1,10 +1,12 @@
 use std::io;
 
-use super::PAGE_SIZE;
+use crate::storage::PAGE_SIZE;
 
 pub type SlotId = u16;
 const HEADER_SIZE: usize = 4;
-const SLOT_SIZE: usize = 4;
+pub const SLOT_SIZE: usize = 4;
+
+pub const MAX_AVAILABLE_SLOTTED_PAGE_SPACE: usize = PAGE_SIZE - (HEADER_SIZE);
 
 pub struct SlottedPage {
     data: [u8; PAGE_SIZE],
@@ -42,6 +44,7 @@ impl SlottedPage {
         );
         (tuple_offset, tuple_length)
     }
+
     fn write_slot(&mut self, slot: SlotId, offset: u16, length: u16) {
         let slot_offset = HEADER_SIZE + slot as usize * SLOT_SIZE;
         self.data[slot_offset..slot_offset + 2].copy_from_slice(&offset.to_le_bytes());
