@@ -55,7 +55,7 @@ impl SlottedPage {
         let required_size = record.len() + SLOT_SIZE;
         let free_size = self.free_space() as usize;
         if free_size < required_size {
-            return Err(io::Error::new(io::ErrorKind::Other, "Out of memory..."));
+            return Err(io::Error::other("Out of memory..."));
         }
         let free_end = self.free_end() as usize;
         let tuple_offset = free_end - record.len();

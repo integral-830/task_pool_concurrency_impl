@@ -1,8 +1,11 @@
+pub mod scan;
 use std::collections::HashSet;
-use std::usize;
 
 use crate::storage::fsm::tree::{FreeSpaceMap, FreeSpaceMapError};
+use crate::storage::heap::scan::HeapFileScan;
 
+use super::access::filter::FilterScan;
+use super::access::owned::OwnedAdapter;
 use super::buffer_pool::frame::PageId;
 use super::page::slotted_page::{SlottedPage, MAX_AVAILABLE_SLOTTED_PAGE_SPACE, SLOT_SIZE};
 
@@ -86,6 +89,14 @@ impl HeapFile {
 
             excluded_page_ids.insert(page_id);
         }
+    }
+
+    pub fn scan(&self) -> HeapFileScan<'_> {
+        HeapFileScan::new(self)
+    }
+
+    pub fn scan_owned(&self) -> OwnedAdapter {
+        OwnedAdapter::new(self.scan())
     }
 
     pub fn get_page(&self, page_id: PageId) -> Result<&SlottedPage, HeapFileError> {
@@ -663,5 +674,14 @@ pub mod heap_file_tests {
 
         assert_eq!(heap_file.pages.len(), 3);
         assert_eq!(heap_file.get_page(2).unwrap().get(0), &[1u8; 696]);
+    }
+
+    pub fn test_scan_iterator_init() {
+        let mut heap_file = HeapFile::new(8).expect("heap_file init error...");
+
+        heap_file.insert(b"hello").unwrap();
+        heap_file.insert(b"world").unwrap();
+
+        let mut scan = heap_file.scan();
     }
 }
